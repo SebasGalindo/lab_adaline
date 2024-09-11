@@ -8,11 +8,17 @@ from PIL import Image
 import shutil
 import os, sys
 import json
+from entrenamiento import train_adaline
 
-# Variables Declaration
+# train and graph variables declaration
+data_json = None
+
+# GUI Variables Declaration
 main_window = None
 title_lbl, description_lbl, logo_UdeC = None, None, None
 canvas = None
+status2_lbl, train_status2_lbl = None, None
+precision_input, theta_input, alpha_input = None, None, None
 
 def GUI_creation():
 
@@ -68,6 +74,8 @@ def GUI_creation():
     test_solution_btn = ctk.CTkButton(master=sidebar, text="Probar soluciones", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=test_solutions_frame)
     test_solution_btn.grid(row=6, column=0, pady=10, sticky="n")
 
+
+
     initial_frame()
     # Run the main window
     main_window.mainloop()
@@ -86,6 +94,7 @@ def show_train_info():
     title.grid(row=0, column=0, pady=20, sticky="nsew")
 
 def train_frame():
+    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
 
@@ -138,6 +147,8 @@ def train_frame():
     advice_lbl = ctk.CTkLabel(master=train_frame,text="", image=json_png_img, justify="center", wraplength=900)
     advice_lbl.grid(row=2, column=0, pady=5, sticky="nsew", columnspan=12)
 
+    # Training data section
+
     # create the button to download the template json
     download_btn = ctk.CTkButton(master=train_frame, text="Descargar Plantilla", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=download_json)
     download_btn.grid(row=3, column=0, pady=10, sticky="n", columnspan=6)
@@ -146,10 +157,43 @@ def train_frame():
     load_btn = ctk.CTkButton(master=train_frame, text="Cargar Datos", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=load_json)
     load_btn.grid(row=3, column=6, pady=10, sticky="n", columnspan=6)
 
-    # create labels with random text for test the scroll funtion
-    for i in range(4, 12):
-        ctk.CTkLabel(master=train_frame, text=f"Label {i}", font=("Arial", 16)).grid(row=i, column=0, pady=10, sticky="nsew", columnspan=12)
-        
+    # Input label for the alpha value
+    alpha_lbl = ctk.CTkLabel(master=train_frame, text="Valor de α:", font=("Arial", 16), text_color="#fbe122")
+    alpha_lbl.grid(row=4, column=0, pady=10, sticky="nsew", columnspan=2, padx=10)
+    alpha_input = ctk.CTkEntry(master=train_frame, font=("Arial", 16), width=10)
+    alpha_input.grid(row=4, column=2, pady=10, sticky="nsew", columnspan=1, padx=2)
+
+    # Input label for theta value
+    theta_lbl = ctk.CTkLabel(master=train_frame, text="Valor del umbral (θ):", font=("Arial", 16), text_color="#fbe122")
+    theta_lbl.grid(row=4, column=3, pady=10, sticky="nsew", columnspan=3, padx=10)
+    theta_input = ctk.CTkEntry(master=train_frame, font=("Arial", 16), width=10)
+    theta_input.grid(row=4, column=6, pady=10, sticky="nsew", columnspan=1, padx=2)
+
+    # Input label for the precision value
+    precision_lbl = ctk.CTkLabel(master=train_frame, text="Valor de la precisión:", font=("Arial", 16), text_color="#fbe122")
+    precision_lbl.grid(row=4, column = 7, pady=10, sticky="nsew", columnspan=3, padx=10)
+    precision_input = ctk.CTkEntry(master=train_frame, font=("Arial", 16), width=10)
+    precision_input.grid(row=4, column=10, pady=10, sticky="nsew", columnspan=1, padx=2)
+
+    # label for the status of the load data (JSON)
+    status_lbl = ctk.CTkLabel(master=train_frame, text="Estado de los datos: ", font=("Arial", 16, "bold"), text_color="#fbe122")
+    status_lbl.grid(row=5, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
+    status2_lbl = ctk.CTkLabel(master=train_frame, text="No Cargados ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    status2_lbl.grid(row=5, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
+
+    # button for start the training
+    train_btn = ctk.CTkButton(master=train_frame, text="Iniciar Entrenamiento", command=start_training, fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010")
+    train_btn.grid(row=6, column=0, pady=10, sticky="n", columnspan=4)
+
+    # label for training status
+    train_status_lbl = ctk.CTkLabel(master=train_frame, text="Estado del entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122")
+    train_status_lbl.grid(row=7, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
+
+    # label for the training status
+    train_status2_lbl = ctk.CTkLabel(master=train_frame, text="No Iniciado ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    train_status2_lbl.grid(row=7, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
+    
+    
 
 def test_solutions_frame():
     if canvas is not None:
@@ -197,11 +241,62 @@ def download_json():
 
 # Funtion to load the JSON file
 def load_json():
-    archivo = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
-    if archivo:
-        with open(archivo, 'r') as file:
-            contenido = json.load(file)
-            print(f"Contenido del JSON cargado:\n{contenido}")
+    global status2_lbl, data_json
+    file = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+    if file:
+        file_name = os.path.basename(file)
+        with open(file, 'r') as file:
+            content = json.load(file)
+            data_json = content
+            print(f"Contenido del JSON cargado:\n{content}")
+            status2_lbl.configure(text=f"Cargado correctamente {file_name}", text_color="#45b51f")
+    elif data_json and not file:
+        status2_lbl.configure(text="Anterior Sigue Cargado", text_color="#b58e12")
+    else:
+        status2_lbl.configure(text="No cargado", text_color="#d62c2c")
+
+def start_training():   
+    global precision_input, theta_input, alpha_input, data_json
+
+    if data_json is None:
+        train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
+        return
+    
+    try:
+        if not alpha_input.get():
+            train_status2_lbl.configure(text="Falta el valor de α", text_color="#d62c2c")
+            return
+        if not theta_input.get():
+            train_status2_lbl.configure(text="Falta el valor de θ", text_color="#d62c2c")
+            return
+        if not precision_input.get():
+            train_status2_lbl.configure(text="Falta el valor de la precisión", text_color="#d62c2c")
+            return
+        if not data_json:
+            train_status2_lbl.configure(text="Datos JSON no cargados", text_color="#d62c2c")
+            return
+        
+        alpha = float(alpha_input.get())
+        theta = float(theta_input.get())
+        precision = float(precision_input.get())
+
+        if alpha <= 0:
+            train_status2_lbl.configure(text="El valor de α debe ser mayor a 0", text_color="#d62c2c")
+            return
+        
+        if precision <= 0:
+            train_status2_lbl.configure(text="El valor de la precisión debe ser mayor a 0", text_color="#d62c2c")
+            return
+
+        train_status2_lbl.configure(text="Entrenamiento Empezado ", text_color="#45b51f")
+        resultados = train_adaline(data_json, alpha, theta, precision)
+        train_status2_lbl.configure(text="Entrenamiento Finalizado ", text_color="#45b51f")
+
+    except Exception as e:
+        print("error", e)
+        return
+
+
 
 if __name__ == "__main__":
     # Acceso a los archivos de pesos
