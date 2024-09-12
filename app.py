@@ -581,9 +581,6 @@ def start_test():
     weights = weights_json["weights"]
     inputs = inputs_json["entradas"]
 
-    print("inputs", len(inputs[0]))
-    print("inputs", inputs[0])
-    print("weights", len(weights))
     if len(weights) != (len(inputs[0]) + 1):
         test_status2_lbl.configure(text="No es igual # entradas y # pesos ", text_color="#d62c2c")
         return

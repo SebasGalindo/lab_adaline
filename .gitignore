@@ -1,5 +1,7 @@
 # Ignorar el entorno virtual de Python
 venv/
+build/
+dist/
 
 # Ignorar archivos de Python compilados
 __pycache__/
