@@ -1,7 +1,7 @@
 import random 
 import copy # To copy the data / this library is used to copy the data and not the reference (only for basic test, not for the real solution)
 
-def train_adaline(data_json, alpha, theta, precision):
+def train_adaline(data_json, alpha = 0.5, theta = -1, precision = 0.01):
     """
     Function to implement the Adaline network train with the given parameters
     :params
@@ -26,7 +26,7 @@ def train_adaline(data_json, alpha, theta, precision):
     graph_data = {
         "epochs": [],
         "errors": [],
-        "weights": []
+        "weights": [],
     }
 
 
@@ -45,7 +45,7 @@ def train_adaline(data_json, alpha, theta, precision):
         data_input[i].insert(0, theta)
 
 
-    actual_error = random.randint(2, 100)
+    actual_error = random.randint(2, 10)
     last_error = actual_error / 2
     obtained_error = 0
     epoch = 0
@@ -65,19 +65,20 @@ def train_adaline(data_json, alpha, theta, precision):
             # update weights
             for j in range(qty_inputs):
                 weights[j] = weights[j] + alpha * (data_output[i] - obtained_output[i]) * data_input[i][j]
-                graph_data["weights"].append(weights.copy())
+            
+            
             # calculate the obtained error
             obtained_error = obtained_error + (data_output[i] - obtained_output[i])
 
         # calculate the actual error (LMS - Least Mean Squares)
         actual_error = obtained_error / p
         graph_data["errors"].append(actual_error)
-
+        graph_data["weights"].append(weights.copy())
         obtained_error = 0
         epoch += 1
     
     print("La red Adaline ha sido entrenada con éxito")
-    return weights, graph_data
+    return weights, graph_data, theta
 
 def adaline_aplication(data_json, weights, theta):
     """

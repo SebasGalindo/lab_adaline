@@ -1,7 +1,6 @@
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.gridspec as gridspec
 from tkinter import filedialog
 from datetime import datetime
 from PIL import Image
@@ -12,9 +11,10 @@ import json
 from entrenamiento import train_adaline, adaline_aplication
 
 # train and graph variables declaration
-data_json = None
+weights_path, graph_data_path, last_train_path, last_train_date = None, None, None, None
+data_json, graph_data, train_json, date = None, None, None, None
 theta = 0
-weights = None
+weights_json, weights = None, None
 
 # GUI Variables Declaration
 main_window = None
@@ -26,16 +26,15 @@ download_weights_btn = None
 
 def GUI_creation():
 
-    global main_window, title, description, logo_UdeC
+    global main_window, title, description, logo_UdeC, last_training2_lbl, download_weights_btn
 
     # Build the main window
     main_window = ctk.CTk()
     main_window.title("Inteligencia Artificial - Adaline")
-    main_window.geometry("1200x800")
-    main_window.resizable(False, False)
+    main_window.geometry("1200x700")
+    main_window.resizable(False, True)
     icon_path = resource_path("Resources/brand_logo.ico")
     main_window.iconbitmap(icon_path)
-    main_window.attributes('-topmost', True)
     main_window.lift()
     main_window.grid_columnconfigure(1, weight=0) 
     main_window.grid_columnconfigure(2, weight=1) 
@@ -44,6 +43,7 @@ def GUI_creation():
     # Sidebar creation
     sidebar = ctk.CTkFrame(master=main_window, width=200, fg_color="#11371A", corner_radius=0)
     sidebar.grid(row=0, column=0, sticky="nsew")
+    sidebar.grid_rowconfigure(8, minsize=160)
 
     # Vertical separator
     ctk.CTkFrame(master=main_window, width=2, fg_color="#0B2310").grid(row=0, column=1, sticky="ns")
@@ -78,27 +78,98 @@ def GUI_creation():
     test_solution_btn = ctk.CTkButton(master=sidebar, text="Probar soluciones", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=test_solutions_frame)
     test_solution_btn.grid(row=6, column=0, pady=10, sticky="n")
 
+    # horizontal separator
+    ctk.CTkFrame(master=sidebar, height=2, fg_color="#0B2310").grid(row=7, column=0, sticky="ew", pady=5)
 
+    # Button for download the resultant weights
+    download_weights_btn = ctk.CTkButton(master=sidebar,command= download_weitghs , text="Descargar Pesos", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", state="disabled")
+    download_weights_btn.grid(row=9, column=0, pady=5)
+    
+    # Label for know the last date of the training
+    last_training_lbl = ctk.CTkLabel(master=sidebar, text="Último entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
+    last_training_lbl.grid(row=10, column=0, pady=5)
+
+    # Label for the last training date
+    last_training2_lbl = ctk.CTkLabel(master=sidebar, text="No hay entrenamientos ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    last_training2_lbl.grid(row=11, column=0, pady=2)
+
+    if weights_json:
+        download_weights_btn.configure(state="normal") 
+
+    if date:
+        last_training2_lbl.configure(text = date, text_color="#fff")
+    elif weights_json:
+        last_training2_lbl.configure(text = "Desconocido", text_color="#fff")
 
     initial_frame()
     # Run the main window
     main_window.mainloop()
 
 def show_train_info():
+    global graph_data, canvas   
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
 
-    principal_frame = ctk.CTkScrollableFrame(master=main_window, corner_radius=0, fg_color="#1D3F23",scrollbar_button_color="#112f16", scrollbar_button_hover_color="#446249")
-    principal_frame.grid(row=0, column=2, sticky="nsew")
-    principal_frame.grid_rowconfigure(0, weight=1)
-    principal_frame.grid_columnconfigure(0, weight=1)
+    graph_frame = ctk.CTkScrollableFrame(master=main_window, corner_radius=0, fg_color="#1D3F23",scrollbar_button_color="#112f16", scrollbar_button_hover_color="#446249")
+    graph_frame.grid(row=0, column=2, sticky="nsew")
+    graph_frame.grid_rowconfigure(0, weight=1)
+    graph_frame.grid_rowconfigure(1, weight=1)
+    graph_frame.grid_rowconfigure(2, weight=1)
+    graph_frame.grid_rowconfigure(3, weight=1)
+    graph_frame.grid_rowconfigure(4, weight=1)
+    graph_frame.grid_rowconfigure(5, weight=1)
+    graph_frame.grid_rowconfigure(6, weight=1)
+    graph_frame.grid_rowconfigure(7, weight=1)
+    graph_frame.grid_rowconfigure(8, weight=1)
+    graph_frame.grid_rowconfigure(9, weight=1)
+    graph_frame.grid_rowconfigure(10, weight=1)
+    graph_frame.grid_rowconfigure(11, weight=1)
+
+    graph_frame.grid_columnconfigure(0, weight=1)
+    graph_frame.grid_columnconfigure(1, weight=1)
+    graph_frame.grid_columnconfigure(2, weight=1)
+    graph_frame.grid_columnconfigure(3, weight=1)
+    graph_frame.grid_columnconfigure(4, weight=1)
+    graph_frame.grid_columnconfigure(5, weight=1)
+    graph_frame.grid_columnconfigure(6, weight=1)
+    graph_frame.grid_columnconfigure(7, weight=1)
+    graph_frame.grid_columnconfigure(8, weight=1)
+    graph_frame.grid_columnconfigure(9, weight=1)
+    graph_frame.grid_columnconfigure(10, weight=1)
+    graph_frame.grid_columnconfigure(11, weight=1)
 
     # Create the section title
-    title = ctk.CTkLabel(master=principal_frame, text="Información de entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
-    title.grid(row=0, column=0, pady=20, sticky="nsew")
+    title = ctk.CTkLabel(master=graph_frame, text="Información de entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
+    title.grid(row=0, column=0, pady=20, sticky="nsew", columnspan=12)
+    
+    if graph_data is None:
+        return
+
+    # Graph of the Errors by epoch
+    figure = plt.figure(figsize=(10, 10))
+    ax = figure.add_subplot(211)
+    ax.plot(graph_data["epochs"], graph_data["errors"], marker="o", color="red")
+    ax.set_title("Errores por época")
+    ax.set_xlabel("Época")
+    ax.set_ylabel("Error")
+
+    # Graph of the Weights by epoch
+    ax2 = figure.add_subplot(212)
+    for i in range(len(graph_data["weights"][0])):
+        ax2.plot(graph_data["epochs"], [w[i] for w in graph_data["weights"]], marker="o", label=f"Peso X_{i}")
+
+    ax2.set_title("Pesos por época")
+    ax2.set_xlabel("Época")
+    ax2.set_ylabel("Peso")
+    ax2.legend()
+
+    figure.subplots_adjust(hspace=0.8)
+    canvas = FigureCanvasTkAgg(figure, master=graph_frame)
+    canvas.draw()
+    canvas.get_tk_widget().grid(row=1, column=0, pady=10,padx=20, sticky="nsew", columnspan=12, rowspan=10)
 
 def train_frame():
-    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl, last_training2_lbl, download_weights_btn, weitghs
+    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl, download_weights_btn, weitghs_json, data_json, canvas, date
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
 
@@ -197,20 +268,6 @@ def train_frame():
     train_status2_lbl = ctk.CTkLabel(master=train_frame, text="No Iniciado ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
     train_status2_lbl.grid(row=6, column=7, pady=10, sticky="nsew", columnspan=5, padx=2)
 
-    # Button for download the resultant weights
-    download_weights_btn = ctk.CTkButton(master=train_frame,command= download_weitghs , text="Descargar Pesos", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", state="disabled")
-    download_weights_btn.grid(row=7, column=0, pady=10, sticky="n", columnspan=4)
-    
-    # Label for know the last date of the training
-    last_training_lbl = ctk.CTkLabel(master=train_frame, text="Último entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
-    last_training_lbl.grid(row=7, column=4, pady=10, sticky="nsew", columnspan=3, padx=10)
-
-    # Label for the last training date
-    last_training2_lbl = ctk.CTkLabel(master=train_frame, text="No hay entrenamientos ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
-    last_training2_lbl.grid(row=7, column=7, pady=10, sticky="nsew", columnspan=5, padx=2)
-
-    if weights:
-        download_weights_btn.configure(state="normal") 
 
 def test_solutions_frame():
     if canvas is not None:
@@ -273,15 +330,15 @@ def load_json():
         status2_lbl.configure(text="No cargado", text_color="#d62c2c")
 
 def download_weitghs():
-    global weights
+    global weights_json
     file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")], initialfile="pesos.json")
     if file_path:
         with open(file_path, 'w') as file:
-            json.dump({"pesos": weights}, file, indent=4)  # Guardar el diccionario en formato JSON
+            json.dump(weights_json, file, indent=4)  # Guardar el diccionario en formato JSON
         print(f"Diccionario guardado en: {file_path}")
  
 def start_training():   
-    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, weights, last_training2_lbl
+    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, weights_json, last_training2_lbl, graph_data
 
     if data_json is None:
         train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
@@ -314,42 +371,86 @@ def start_training():
             return
 
         train_status2_lbl.configure(text="Entrenamiento Empezado ", text_color="#45b51f")
-        weights, graph_data = train_adaline(data_json, alpha, theta, precision)
+        weights, graph_data, theta = train_adaline(data_json, alpha, theta, precision)
+
+        weights_json = {
+            "weights": weights,
+            "theta": theta
+        }
+
         train_status2_lbl.configure(text="Entrenamiento Finalizado ", text_color="#45b51f")
         download_weights_btn.configure(state="normal")
         # get the actual date in format dd/mm/yyyy hh:mm:ss
         date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        last_training2_lbl.configure(text = date, text_color="#45b51f")
-
-        results = adaline_aplication(data_json, weights, theta)
+        last_training2_lbl.configure(text = date, text_color="#fff")
+        store_data(weights_json, data_json, graph_data, date)
 
     except Exception as e:
         print("error", e)
         return
 
+def first_train():
+    global weights_json, train_json, date, graph_data
+    template_path = resource_path('Data/Template.json')
+
+    if not train_json:
+        if os.path.isfile(template_path):
+            with open(template_path, 'r') as file:
+                train_json = json.load(file)
+        else:
+            return
+        
+        weights, graph_data, theta = train_adaline(train_json)
+
+        weights_json = {
+            "weights": weights,
+            "theta": theta
+        }
+        date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        store_data(weights_json, train_json, graph_data, date)
+
+def store_data(weights_json, train_json, graph_data, date):
+    global weights_path, graph_data_path, last_train_path, last_train_date
+
+    # Store the weights in a JSON file
+    with open(weights_path, 'w') as file:
+        json.dump(weights_json, file, indent=4)  
+
+    # Store the graph data in a JSON file
+    with open(graph_data_path, 'w') as file:
+        json.dump(graph_data, file, indent=4)
+
+    # Store the last train data in a JSON file
+    with open(last_train_path, 'w') as file:
+        json.dump(train_json, file, indent=4)  
+
+    # Store the last train date in a JSON file
+    with open(last_train_date, 'w') as file:
+        json.dump({"date": date}, file, indent=4)
 
 
 if __name__ == "__main__":
-    # Acceso a los archivos de pesos
-    #ruta_pesos_json = resource_path('Data/pesos.json')
-    #ruta_graficas_json = resource_path('Data/graficas.json')
-    #pesos_json = {}
-    #graficas_json = {}
-    # Verificando si el archivo de pesos existe
-    #if os.path.isfile(ruta_pesos_json) or os.path.isfile(ruta_graficas_json):
-        # Si existe, se cargan los pesos
-    #    with open(ruta_pesos_json, 'r') as file:
-    #        pesos_json = json.load(file)
-    #    with open(ruta_graficas_json, 'r') as file:
-    #        graficas_json = json.load(file)
-    #else:
-        # Si no existe, se crean los pesos
-        # pesos_json, graficas_json = creacion_pesos()
-        # Se guardan los pesos
-        # with open(ruta_pesos_json, 'w') as file:
-        #    json.dump(pesos_json, file)
-        # with open(ruta_graficas_json, 'w') as file:
-        #    json.dump(graficas_json, file)
+    # Paths of the JSON files
+    weights_path = resource_path('Data/weights.json')
+    last_train_path = resource_path('Data/last_train_data.json')
+    graph_data_path = resource_path('Data/graph_data.json')
+    last_train_date = resource_path('Data/last_train_date.json')
 
-    # Creacion del GUI
+    # Files verification and load
+    if os.path.isfile(last_train_path) and os.path.isfile(weights_path) and os.path.isfile(graph_data_path):
+        with open(last_train_path, 'r') as file:
+            train_json = json.load(file)
+        with open(weights_path, 'r') as file:
+            weights_json = json.load(file)
+        with open(graph_data_path, 'r') as file:
+            graph_data = json.load(file)
+    else:
+        first_train()
+
+    if os.path.isfile(last_train_date):
+        with open(last_train_date, 'r') as file:
+            date = json.load(file)["date"]
+    
+    print("weights_json", weights_json)
+    # GUI creation
     GUI_creation()
