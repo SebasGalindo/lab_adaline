@@ -3,22 +3,26 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.gridspec as gridspec
 from tkinter import filedialog
+from datetime import datetime
 from PIL import Image
 
 import shutil
 import os, sys
 import json
-from entrenamiento import train_adaline
+from entrenamiento import train_adaline, adaline_aplication
 
 # train and graph variables declaration
 data_json = None
+theta = 0
+weights = None
 
 # GUI Variables Declaration
 main_window = None
 title_lbl, description_lbl, logo_UdeC = None, None, None
 canvas = None
-status2_lbl, train_status2_lbl = None, None
+status2_lbl, train_status2_lbl, last_training2_lbl = None, None, None
 precision_input, theta_input, alpha_input = None, None, None
+download_weights_btn = None
 
 def GUI_creation():
 
@@ -94,7 +98,7 @@ def show_train_info():
     title.grid(row=0, column=0, pady=20, sticky="nsew")
 
 def train_frame():
-    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl
+    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl, last_training2_lbl, download_weights_btn, weitghs
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
 
@@ -176,7 +180,7 @@ def train_frame():
     precision_input.grid(row=4, column=10, pady=10, sticky="nsew", columnspan=1, padx=2)
 
     # label for the status of the load data (JSON)
-    status_lbl = ctk.CTkLabel(master=train_frame, text="Estado de los datos: ", font=("Arial", 16, "bold"), text_color="#fbe122")
+    status_lbl = ctk.CTkLabel(master=train_frame, text="Estado de los datos: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
     status_lbl.grid(row=5, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
     status2_lbl = ctk.CTkLabel(master=train_frame, text="No Cargados ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
     status2_lbl.grid(row=5, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
@@ -186,14 +190,27 @@ def train_frame():
     train_btn.grid(row=6, column=0, pady=10, sticky="n", columnspan=4)
 
     # label for training status
-    train_status_lbl = ctk.CTkLabel(master=train_frame, text="Estado del entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122")
-    train_status_lbl.grid(row=7, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
+    train_status_lbl = ctk.CTkLabel(master=train_frame, text="Estado del entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
+    train_status_lbl.grid(row=6, column=4, pady=10, sticky="nsew", columnspan=3, padx=10)
 
     # label for the training status
     train_status2_lbl = ctk.CTkLabel(master=train_frame, text="No Iniciado ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
-    train_status2_lbl.grid(row=7, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
+    train_status2_lbl.grid(row=6, column=7, pady=10, sticky="nsew", columnspan=5, padx=2)
+
+    # Button for download the resultant weights
+    download_weights_btn = ctk.CTkButton(master=train_frame,command= download_weitghs , text="Descargar Pesos", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", state="disabled")
+    download_weights_btn.grid(row=7, column=0, pady=10, sticky="n", columnspan=4)
     
-    
+    # Label for know the last date of the training
+    last_training_lbl = ctk.CTkLabel(master=train_frame, text="Último entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
+    last_training_lbl.grid(row=7, column=4, pady=10, sticky="nsew", columnspan=3, padx=10)
+
+    # Label for the last training date
+    last_training2_lbl = ctk.CTkLabel(master=train_frame, text="No hay entrenamientos ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    last_training2_lbl.grid(row=7, column=7, pady=10, sticky="nsew", columnspan=5, padx=2)
+
+    if weights:
+        download_weights_btn.configure(state="normal") 
 
 def test_solutions_frame():
     if canvas is not None:
@@ -255,8 +272,16 @@ def load_json():
     else:
         status2_lbl.configure(text="No cargado", text_color="#d62c2c")
 
+def download_weitghs():
+    global weights
+    file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")], initialfile="pesos.json")
+    if file_path:
+        with open(file_path, 'w') as file:
+            json.dump({"pesos": weights}, file, indent=4)  # Guardar el diccionario en formato JSON
+        print(f"Diccionario guardado en: {file_path}")
+ 
 def start_training():   
-    global precision_input, theta_input, alpha_input, data_json
+    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, weights, last_training2_lbl
 
     if data_json is None:
         train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
@@ -289,8 +314,14 @@ def start_training():
             return
 
         train_status2_lbl.configure(text="Entrenamiento Empezado ", text_color="#45b51f")
-        resultados = train_adaline(data_json, alpha, theta, precision)
+        weights, graph_data = train_adaline(data_json, alpha, theta, precision)
         train_status2_lbl.configure(text="Entrenamiento Finalizado ", text_color="#45b51f")
+        download_weights_btn.configure(state="normal")
+        # get the actual date in format dd/mm/yyyy hh:mm:ss
+        date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        last_training2_lbl.configure(text = date, text_color="#45b51f")
+
+        results = adaline_aplication(data_json, weights, theta)
 
     except Exception as e:
         print("error", e)
