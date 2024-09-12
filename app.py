@@ -498,7 +498,7 @@ def download_weitghs():
         print(f"Diccionario guardado en: {file_path}")
  
 def start_training():   
-    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, weights_json, last_training2_lbl, graph_data
+    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, weights_json, last_training2_lbl, graph_data, inputs_json
 
     if data_json is None:
         train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
@@ -543,6 +543,7 @@ def start_training():
         # get the actual date in format dd/mm/yyyy hh:mm:ss
         date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         last_training2_lbl.configure(text = date, text_color="#fff")
+        inputs_json = data_json
         store_data(weights_json, data_json, graph_data, date)
 
     except Exception as e:
@@ -580,6 +581,9 @@ def start_test():
     weights = weights_json["weights"]
     inputs = inputs_json["entradas"]
 
+    print("inputs", len(inputs[0]))
+    print("inputs", inputs[0])
+    print("weights", len(weights))
     if len(weights) != (len(inputs[0]) + 1):
         test_status2_lbl.configure(text="No es igual # entradas y # pesos ", text_color="#d62c2c")
         return
