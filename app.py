@@ -14,7 +14,7 @@ from entrenamiento import train_adaline, adaline_aplication
 # train and graph variables declaration
 weights_path, graph_data_path, last_train_path, last_train_date = None, None, None, None
 data_json, graph_data, train_json, inputs_json, date, test_results = None, None, None, None, None, None
-theta = 0
+theta, alpha, precision = 0,0,0
 weights_json, weights = None, None
 
 # GUI Variables Declaration
@@ -46,7 +46,7 @@ def GUI_creation():
     # Sidebar creation
     sidebar = ctk.CTkFrame(master=main_window, width=200, fg_color="#11371A", corner_radius=0)
     sidebar.grid(row=0, column=0, sticky="nsew")
-    sidebar.grid_rowconfigure(8, minsize=160)
+    sidebar.grid_rowconfigure(7, minsize=160)
 
     # Vertical separator
     ctk.CTkFrame(master=main_window, width=2, fg_color="#0B2310").grid(row=0, column=1, sticky="ns")
@@ -75,26 +75,23 @@ def GUI_creation():
     train_btn = ctk.CTkButton(master=sidebar, text="Realizar nuevo entrenamiento", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=train_frame)
     train_btn.grid(row=4, column=0, pady=10, sticky="n")
 
-    train_info_btn = ctk.CTkButton(master=sidebar, text="Ver Información de entrenamiento", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=show_train_info)
-    train_info_btn.grid(row=5, column=0, pady=10, sticky="n")
-
     test_solution_btn = ctk.CTkButton(master=sidebar, text="Probar soluciones", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", command=test_solutions_frame)
-    test_solution_btn.grid(row=6, column=0, pady=10, sticky="n")
+    test_solution_btn.grid(row=5, column=0, pady=10, sticky="n")
 
     # horizontal separator
-    ctk.CTkFrame(master=sidebar, height=2, fg_color="#0B2310").grid(row=7, column=0, sticky="ew", pady=5)
+    ctk.CTkFrame(master=sidebar, height=2, fg_color="#0B2310").grid(row=6, column=0, sticky="ew", pady=5)
 
     # Button for download the resultant weights
     download_weights_btn = ctk.CTkButton(master=sidebar,command= download_weitghs , text="Descargar Pesos", fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010", state="disabled")
-    download_weights_btn.grid(row=9, column=0, pady=5)
+    download_weights_btn.grid(row=8, column=0, pady=5)
     
     # Label for know the last date of the training
     last_training_lbl = ctk.CTkLabel(master=sidebar, text="Último entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
-    last_training_lbl.grid(row=10, column=0, pady=5)
+    last_training_lbl.grid(row=9, column=0, pady=5)
 
     # Label for the last training date
     last_training2_lbl = ctk.CTkLabel(master=sidebar, text="No hay entrenamientos ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
-    last_training2_lbl.grid(row=11, column=0, pady=2)
+    last_training2_lbl.grid(row=10, column=0, pady=2)
 
     if weights_json:
         download_weights_btn.configure(state="normal") 
@@ -109,19 +106,13 @@ def GUI_creation():
     main_window.mainloop()
 
 def show_train_info():
-    global graph_data, canvas   
+    global graph_data, canvas, train_frame   
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
 
-    graph_frame = ctk.CTkScrollableFrame(master=main_window, corner_radius=0, fg_color="#1D3F23",scrollbar_button_color="#112f16", scrollbar_button_hover_color="#446249")
-    graph_frame.grid(row=0, column=2, sticky="nsew")
-    for i in range(12): 
-        graph_frame.grid_rowconfigure(i, weight=1)
-        graph_frame.grid_columnconfigure(i, weight=1)
-
     # Create the section title
-    title = ctk.CTkLabel(master=graph_frame, text="Información de entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
-    title.grid(row=0, column=0, pady=20, sticky="nsew", columnspan=12)
+    title = ctk.CTkLabel(master=train_frame, text="Información de entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
+    title.grid(row=8, column=0, pady=20, sticky="nsew", columnspan=12)
     
     if graph_data is None:
         return
@@ -145,12 +136,14 @@ def show_train_info():
     ax2.legend()
 
     figure.subplots_adjust(hspace=0.8)
-    canvas = FigureCanvasTkAgg(figure, master=graph_frame)
+    canvas = FigureCanvasTkAgg(figure, master=train_frame)
     canvas.draw()
-    canvas.get_tk_widget().grid(row=1, column=0, pady=10,padx=20, sticky="nsew", columnspan=12, rowspan=10)
+    canvas.get_tk_widget().grid(row=9, column=0, pady=10,padx=20, sticky="nsew", columnspan=12, rowspan=10)
 
 def train_frame():
-    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl, download_weights_btn, weitghs_json, data_json, canvas, date
+    global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl 
+    global download_weights_btn, weights_json, data_json, canvas, date, train_frame, graph_data, alpha, theta, precision
+   
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
 
@@ -197,11 +190,19 @@ def train_frame():
     alpha_input = ctk.CTkEntry(master=train_frame, font=("Arial", 16), width=10)
     alpha_input.grid(row=4, column=2, pady=10, sticky="nsew", columnspan=1, padx=2)
 
+    # Charge the alpha value with the last training if it exists
+    if alpha:
+        alpha_input.insert(0, alpha)
+
     # Input label for theta value
     theta_lbl = ctk.CTkLabel(master=train_frame, text="Valor del umbral (θ):", font=("Arial", 16), text_color="#fbe122")
     theta_lbl.grid(row=4, column=3, pady=10, sticky="nsew", columnspan=3, padx=10)
     theta_input = ctk.CTkEntry(master=train_frame, font=("Arial", 16), width=10)
     theta_input.grid(row=4, column=6, pady=10, sticky="nsew", columnspan=1, padx=2)
+
+    # Charge the theta value with the last training if it exists
+    if theta:
+        theta_input.insert(0, theta)
 
     # Input label for the precision value
     precision_lbl = ctk.CTkLabel(master=train_frame, text="Valor de la precisión:", font=("Arial", 16), text_color="#fbe122")
@@ -209,11 +210,19 @@ def train_frame():
     precision_input = ctk.CTkEntry(master=train_frame, font=("Arial", 16), width=10)
     precision_input.grid(row=4, column=10, pady=10, sticky="nsew", columnspan=1, padx=2)
 
+    # Charge the precision value with the last training if it exists
+    if precision:
+        precision_input.insert(0, precision)
+
     # label for the status of the load data (JSON)
     status_lbl = ctk.CTkLabel(master=train_frame, text="Estado de los datos: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
     status_lbl.grid(row=5, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
-    status2_lbl = ctk.CTkLabel(master=train_frame, text="No Cargados ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    status2_lbl = ctk.CTkLabel(master=train_frame, text="No Cargados", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
     status2_lbl.grid(row=5, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
+
+    # Charge the status of the data with the last training if it exists
+    if data_json:
+        status2_lbl.configure(text="Anterior sigue cargado", text_color="#b58e12")
 
     # button for start the training
     train_btn = ctk.CTkButton(master=train_frame, text="Iniciar Entrenamiento", command=start_training, fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010")
@@ -226,6 +235,16 @@ def train_frame():
     # label for the training status
     train_status2_lbl = ctk.CTkLabel(master=train_frame, text="No Iniciado ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
     train_status2_lbl.grid(row=6, column=7, pady=10, sticky="nsew", columnspan=5, padx=2)
+
+    # Horizontal separator
+    ctk.CTkFrame(master=train_frame, height=2, fg_color="#0B2310").grid(row=7, column=0, sticky="ew", pady=5, columnspan=12)
+
+    # Charge the status of the training with the last training if it exists
+    if graph_data and weights_json:
+        train_status2_lbl.configure(text="Entrenamiento Anterior", text_color="#b58e12")
+        show_train_info()
+
+    
 
 def test_solutions_frame():
     global last_train_check, load_test_btn, load_weights_btn, status_test_data2_lbl, status_weights2_lbl, test_status2_lbl, results_lbl
@@ -284,13 +303,13 @@ def test_solutions_frame():
     # label for the status of the test data (JSON)
     status_test_data_lbl = ctk.CTkLabel(master=test_frame, text="Estado de los datos: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
     status_test_data_lbl.grid(row=6, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
-    status_test_data2_lbl = ctk.CTkLabel(master=test_frame, text="No Cargados ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    status_test_data2_lbl = ctk.CTkLabel(master=test_frame, text="No cargados", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
     status_test_data2_lbl.grid(row=6, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
 
     # label for the status of the weights (JSON)
     status_weights_lbl = ctk.CTkLabel(master=test_frame, text="Estado de los pesos: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
     status_weights_lbl.grid(row=7, column=1, pady=10, sticky="nsew", columnspan=3, padx=10)
-    status_weights2_lbl = ctk.CTkLabel(master=test_frame, text="No Cargados ", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
+    status_weights2_lbl = ctk.CTkLabel(master=test_frame, text="No cargados", font=("Arial", 16, "bold"), text_color="#fb2323", anchor="w")
     status_weights2_lbl.grid(row=7, column=4, pady=10, sticky="nsew", columnspan=8, padx=2)
 
     # Button for start the test
@@ -315,8 +334,6 @@ def test_solutions_frame():
     results_lbl = ctk.CTkLabel(master=test_frame, text="", font=("Arial", 16), justify="center", wraplength=900)
     results_lbl.grid(row=12, column=0, pady=5, sticky="nsew", columnspan=12)
 
-
-
 def initial_frame(event=None):
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
@@ -335,7 +352,7 @@ def initial_frame(event=None):
     # App Explanation section
     explanation_txt = ("Esta aplicación permite realizar un entrenamiento de un modelo Adaline, "
                         "Por defecto esta cargado el ultimo entrenamiento realizado."
-                        "El programa cuenta con 3 secciones principales: Nuevo Entrenamiento, Información de Entrenamiento y Pruebas.")
+                        "El programa cuenta con 2 secciones principales: Nuevo Entrenamiento y Pruebas.")
     explanation_lbl = ctk.CTkLabel(master=principal_frame, text=explanation_txt, font=("Arial", 16), justify="left", wraplength=900)
     explanation_lbl.grid(row=1, column=0, pady=5, sticky="nsew", columnspan=2)
 
@@ -352,25 +369,15 @@ def initial_frame(event=None):
                         "Una vez cargados los datos, deberá ingresar el valor de α, θ y la precisión deseada para el entrenamiento."
                         "el valor de α y la precisión deben ser mayores a 0."
                         "Finalmente, deberá presionar el botón 'Iniciar Entrenamiento' para comenzar el proceso."
+                        "Una vez finalizado el entrenamiento, se mostrará un gráfico con los errores por época y los pesos por época."
                         )
     explanation2_lbl = ctk.CTkLabel(master=principal_frame, text=explanation2_txt, font=("Arial", 16), justify="left", wraplength=900)
     explanation2_lbl.grid(row=3, column=0, pady=5, sticky="nsew", padx=5, columnspan=2)
 
-    # Graph explanation section
-    # Create the section title
-    title3 = ctk.CTkLabel(master=principal_frame, text="Sección de Información de Entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
-    title3.grid(row=4, column=0, pady=20, sticky="nsew", columnspan=2)
-    # explanation text
-    explanation3_txt = ("La sección de Información de Entrenamiento permite visualizar la información del último entrenamiento realizado, "
-                        "en esta sección se mostrará un gráfico con los errores por época y los pesos por época."
-                        )
-    explanation3_lbl = ctk.CTkLabel(master=principal_frame, text=explanation3_txt, font=("Arial", 16), justify="left", wraplength=900)
-    explanation3_lbl.grid(row=5, column=0, pady=5, sticky="nsew", columnspan=2)
-
     # Test explanation section
     # Create the section title
     title4 = ctk.CTkLabel(master=principal_frame, text="Sección de Pruebas", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
-    title4.grid(row=6, column=0, pady=20, sticky="nsew", columnspan=2)
+    title4.grid(row=4, column=0, pady=20, sticky="nsew", columnspan=2)
     # explanation text
     explanation4_txt = ("La sección de Pruebas permite realizar pruebas con el modelo entrenado, "
                         "para ello, se deberá cargar dos archivos en formato JSON, "
@@ -380,7 +387,7 @@ def initial_frame(event=None):
                         "Finalmente, se mostrara una la lista de entradas y las salidas obtenidas."
                         )
     explanation4_lbl = ctk.CTkLabel(master=principal_frame, text=explanation4_txt, font=("Arial", 16), justify="left", wraplength=900)
-    explanation4_lbl.grid(row=7, column=0, pady=5, sticky="nsew", padx=5, columnspan=2)
+    explanation4_lbl.grid(row=5, column=0, pady=5, sticky="nsew", padx=5, columnspan=2)
     
     # Github logo 
     github_path = resource_path("Resources/github_PNG.png")
@@ -390,7 +397,7 @@ def initial_frame(event=None):
     # link to the Github Project
     github_link = ctk.CTkLabel(master=principal_frame, text="Codigo del proyecto", font=("Arial", 16, "bold"), text_color="#fbe122", cursor="hand2", image=logo_github, compound="right")
     github_link.bind("<Button-1>", open_github)
-    github_link.grid(row=8, column=0, pady=20, sticky="nsew")
+    github_link.grid(row=6, column=0, pady=20, sticky="nsew")
 
     # Documentation logo
     doc_path = resource_path("Resources/doc_logo.png")
@@ -400,7 +407,7 @@ def initial_frame(event=None):
     # link to the Documentation
     doc_link = ctk.CTkLabel(master=principal_frame, text="IEEE del proyecto", font=("Arial", 16, "bold"), text_color="#fbe122", cursor="hand2", image=logo_doc, compound="right")
     doc_link.bind("<Button-1>", open_documentation)
-    doc_link.grid(row=8, column=1, pady=20, sticky="nsew")
+    doc_link.grid(row=6, column=1, pady=20, sticky="nsew")
 
 def open_github(event):
     webbrowser.open("https://github.com/SebasGalindo/lab_adaline")    
@@ -414,8 +421,8 @@ def change_state_btn():
     if state == 0:
         load_test_btn.configure(state="normal")
         load_weights_btn.configure(state="normal")
-        status_test_data2_lbl.configure(text="No cargado", text_color="#d62c2c")
-        status_weights2_lbl.configure(text="No cargado", text_color="#d62c2c")
+        status_test_data2_lbl.configure(text="No cargados", text_color="#d62c2c")
+        status_weights2_lbl.configure(text="No cargados", text_color="#d62c2c")
     else:
         load_test_btn.configure(state="disabled")
         load_weights_btn.configure(state="disabled")
@@ -465,7 +472,7 @@ def load_train_data():
     elif data_json and not data:
         status2_lbl.configure(text="Anterior Sigue Cargado", text_color="#b58e12")
     else:
-        status2_lbl.configure(text="No cargado", text_color="#d62c2c")
+        status2_lbl.configure(text="No Cargados", text_color="#d62c2c")
 
 def load_test_data():
     global inputs_json, status_test_data2_lbl
@@ -476,7 +483,7 @@ def load_test_data():
     elif inputs_json and not data:
         status_test_data2_lbl.configure(text="Entradas Anteriores Siguen Cargadas", text_color="#b58e12")
     else:
-        status_test_data2_lbl.configure(text="No cargado", text_color="#d62c2c")
+        status_test_data2_lbl.configure(text="No cargados", text_color="#d62c2c")
 
 def load_weights():
     global weights_json, status_weights2_lbl
@@ -487,7 +494,7 @@ def load_weights():
     elif weights_json and not data:
         status_weights2_lbl.configure(text="Pesos Anteriores Siguen Cargados", text_color="#b58e12")
     else:
-        status_weights2_lbl.configure(text="No cargado", text_color="#d62c2c")
+        status_weights2_lbl.configure(text="No cargados", text_color="#d62c2c")
 
 def download_weitghs():
     global weights_json
@@ -498,7 +505,11 @@ def download_weitghs():
         print(f"Diccionario guardado en: {file_path}")
  
 def start_training():   
-    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, weights_json, last_training2_lbl, graph_data, inputs_json
+    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, alpha, precision, weights_json, last_training2_lbl, graph_data, inputs_json, status2_lbl
+
+    if status2_lbl.cget("text") == "No Cargados":
+        train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
+        return
 
     if data_json is None:
         train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
@@ -545,6 +556,7 @@ def start_training():
         last_training2_lbl.configure(text = date, text_color="#fff")
         inputs_json = data_json
         store_data(weights_json, data_json, graph_data, date)
+        show_train_info()
 
     except Exception as e:
         print("error", e)
@@ -557,8 +569,10 @@ def start_test():
 
     status_test_data_txt = status_test_data2_lbl.cget("text")
     status_weights_txt = status_weights2_lbl.cget("text")
+    print(status_test_data_txt)
+    print(status_weights_txt)
 
-    if status_test_data_txt == "No cargado" or status_weights_txt == "No cargado":
+    if status_test_data_txt == "No cargados" or status_weights_txt == "No cargados":
         test_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
         return
 
