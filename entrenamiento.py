@@ -64,11 +64,11 @@ def train_adaline(data_json, alpha = 0.5, theta = -1, precision = 0.01):
 
             # update weights
             for j in range(qty_inputs):
-                weights[j] = weights[j] + alpha * (data_output[i] - obtained_output[i]) * data_input[i][j]
+                weights[j] = weights[j] + (alpha * (data_output[i] - obtained_output[i]) * data_input[i][j])
             
             
             # calculate the obtained error
-            obtained_error = obtained_error + (data_output[i] - obtained_output[i])
+            obtained_error = obtained_error + ((data_output[i] - obtained_output[i])**2)
 
         # calculate the actual error (LMS - Least Mean Squares)
         actual_error = obtained_error / p
@@ -76,6 +76,8 @@ def train_adaline(data_json, alpha = 0.5, theta = -1, precision = 0.01):
         graph_data["weights"].append(weights.copy())
         obtained_error = 0
         epoch += 1
+        print("Epoch: ", epoch)
+        print("Condiciones de parada: ", abs(actual_error - last_error))
     
     print("La red Adaline ha sido entrenada con éxito")
     return weights, graph_data, theta

@@ -242,9 +242,7 @@ def train_frame():
     # Charge the status of the training with the last training if it exists
     if graph_data and weights_json:
         train_status2_lbl.configure(text="Entrenamiento Anterior", text_color="#b58e12")
-        show_train_info()
-
-    
+        show_train_info()  
 
 def test_solutions_frame():
     global last_train_check, load_test_btn, load_weights_btn, status_test_data2_lbl, status_weights2_lbl, test_status2_lbl, results_lbl
@@ -537,6 +535,10 @@ def start_training():
             train_status2_lbl.configure(text="El valor de α debe ser mayor a 0", text_color="#d62c2c")
             return
         
+        if alpha >= 1:
+            train_status2_lbl.configure(text="El valor de α debe ser menor a 1 para evitar la divergencia", text_color="#d62c2c")
+            return
+
         if precision <= 0:
             train_status2_lbl.configure(text="El valor de la precisión debe ser mayor a 0", text_color="#d62c2c")
             return
