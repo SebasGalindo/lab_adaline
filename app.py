@@ -411,7 +411,7 @@ def open_github(event):
     webbrowser.open("https://github.com/SebasGalindo/lab_adaline")    
 
 def open_documentation(event):
-    webbrowser.open("https://youtube.com")
+    webbrowser.open("https://mailunicundiedu-my.sharepoint.com/:b:/g/personal/mamorenobeltran_ucundinamarca_edu_co/EcoU5O6ciXpCkyvETVU4KBIBW-DL6eyV6lSngf7YiwOE8Q?e=0l881Y")
 
 def change_state_btn():
     global last_train_check, load_test_btn, load_weights_btn, status_test_data2_lbl, status_weights2_lbl, inputs_json, weights_json
