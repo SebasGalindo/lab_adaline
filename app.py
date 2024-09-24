@@ -184,7 +184,7 @@ def train_frame():
     console_frame.grid(row=9, column=0, pady=10, padx=20, sticky="nsew", columnspan=12)
 
     # Crear el widget Text para la consola
-    console_text = tk.Text(console_frame, height=25, width=108, wrap=tk.NONE)  # wrap=tk.NONE evita el salto de línea automático
+    console_text = tk.Text(console_frame, height=25, width=135, wrap=tk.NONE)  # wrap=tk.NONE evita el salto de línea automático
 
     # Scrollbar para la consola (horizontal y vertical)
     scrollbar_y = Scrollbar(console_frame, orient=tk.VERTICAL, command=console_text.yview)
