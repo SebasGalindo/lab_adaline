@@ -1,15 +1,17 @@
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from tkinter import filedialog
+from tkinter import filedialog, Text, END, Scrollbar
+import tkinter as tk
 from datetime import datetime
 from PIL import Image
-
+import io
 import shutil
 import webbrowser
 import os, sys
 import json
 from entrenamiento import train_adaline, adaline_aplication
+
 
 # train and graph variables declaration
 weights_path, graph_data_path, last_train_path, last_train_date = None, None, None, None
@@ -26,6 +28,19 @@ results_lbl = None
 precision_input, theta_input, alpha_input = None, None, None
 download_weights_btn, load_test_btn, load_weights_btn = None, None, None
 last_train_check = None
+
+# Clase para redirigir stdout a la consola de la GUI
+class RedirectText(io.StringIO):
+    def __init__(self, widget):
+        super().__init__()
+        self.widget = widget
+
+    def write(self, string):
+        self.widget.insert(END, string)
+        self.widget.see(END)  # Auto-scroll hacia abajo
+
+    def flush(self):
+        pass  # Necesario para evitar errores al redirigir sys.stdout
 
 def GUI_creation():
 
@@ -106,26 +121,30 @@ def GUI_creation():
     main_window.mainloop()
 
 def show_train_info():
-    global graph_data, canvas, train_frame   
+    global graph_data, canvas, train_frame
+
+    # Si ya existe un canvas anterior, eliminarlo
     if canvas is not None:
         canvas.get_tk_widget().grid_forget()
+        canvas.get_tk_widget().destroy()
 
-    # Create the section title
-    title = ctk.CTkLabel(master=train_frame, text="Información de entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
+    # Crear el título de la sección
+    title = ctk.CTkLabel(master=train_frame, text="Información de entrenamiento", font=("Arial", 20, "bold"),
+                         text_color="#fbe122", anchor="center", justify="center")
     title.grid(row=8, column=0, pady=20, sticky="nsew", columnspan=12)
     
     if graph_data is None:
         return
 
-    # Graph of the Errors by epoch
-    figure = plt.figure(figsize=(10, 10))
+    # Crear la gráfica de Errores por Época
+    figure = plt.figure(figsize=(10, 6))
     ax = figure.add_subplot(211)
     ax.plot(graph_data["epochs"], graph_data["errors"], marker="o", color="red")
     ax.set_title("Errores por época")
     ax.set_xlabel("Época")
     ax.set_ylabel("Error")
 
-    # Graph of the Weights by epoch
+    # Crear la gráfica de Pesos por Época
     ax2 = figure.add_subplot(212)
     for i in range(len(graph_data["weights"][0])):
         ax2.plot(graph_data["epochs"], [w[i] for w in graph_data["weights"]], marker="o", label=f"Peso X_{i}")
@@ -136,9 +155,13 @@ def show_train_info():
     ax2.legend()
 
     figure.subplots_adjust(hspace=0.8)
+
+    # Crear el nuevo canvas para mostrar la gráfica
     canvas = FigureCanvasTkAgg(figure, master=train_frame)
     canvas.draw()
-    canvas.get_tk_widget().grid(row=9, column=0, pady=10,padx=20, sticky="nsew", columnspan=12, rowspan=10)
+
+    # Añadir el canvas a la grilla sin sobreponerse a la consola
+    canvas.get_tk_widget().grid(row=10, column=0, pady=10, padx=20, sticky="nsew", columnspan=12, rowspan=10)
 
 def train_frame():
     global status2_lbl,precision_input, theta_input, alpha_input, train_status2_lbl 
@@ -156,6 +179,28 @@ def train_frame():
     # Create the section title
     title = ctk.CTkLabel(master=train_frame, text="Sección de Nuevo Entrenamiento", font=("Arial", 20, "bold"), text_color="#fbe122", anchor="center", justify="center")
     title.grid(row=0, column=0, pady=20, sticky="nsew", columnspan=12)
+    # Configurar la consola con un scrollbar independiente
+    console_frame = tk.Frame(master=train_frame)
+    console_frame.grid(row=9, column=0, pady=10, padx=20, sticky="nsew", columnspan=12)
+
+    # Crear el widget Text para la consola
+    console_text = tk.Text(console_frame, height=25, width=108, wrap=tk.NONE)  # wrap=tk.NONE evita el salto de línea automático
+
+    # Scrollbar para la consola (horizontal y vertical)
+    scrollbar_y = Scrollbar(console_frame, orient=tk.VERTICAL, command=console_text.yview)
+    scrollbar_x = Scrollbar(console_frame, orient=tk.HORIZONTAL, command=console_text.xview)
+
+    # Configurar scrollbars
+    console_text.config(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+
+    # Posicionar el widget Text y los scrollbars
+    console_text.grid(row=0, column=0, sticky="nsew")
+    scrollbar_y.grid(row=0, column=1, sticky="ns")
+    scrollbar_x.grid(row=1, column=0, sticky="ew")
+
+    # Redirigir stdout a la consola
+    redirect_text = RedirectText(console_text)
+    sys.stdout = redirect_text  # Redirigir la salida estándar a la consola
 
     # Explanation section
     explanation_txt = ("Esta sección permitirá realizar un nuevo entrenamiento del modelo Adaline, "
@@ -225,9 +270,14 @@ def train_frame():
         status2_lbl.configure(text="Anterior sigue cargado", text_color="#b58e12")
 
     # button for start the training
-    train_btn = ctk.CTkButton(master=train_frame, text="Iniciar Entrenamiento", command=start_training, fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"), hover_color="#E2B12F", text_color="#0F1010")
+    train_btn = ctk.CTkButton(master=train_frame, text="Iniciar Entrenamiento", command=lambda: start_training(console_text),
+                              fg_color="#fbe122", width=180, height=40, font=("Arial", 13, "bold"),
+                              hover_color="#E2B12F", text_color="#0F1010")
     train_btn.grid(row=6, column=0, pady=10, sticky="n", columnspan=4)
 
+    # Restore stdout when training is finished
+    sys.stdout = sys.__stdout__
+    
     # label for training status
     train_status_lbl = ctk.CTkLabel(master=train_frame, text="Estado del entrenamiento: ", font=("Arial", 16, "bold"), text_color="#fbe122", anchor="w")
     train_status_lbl.grid(row=6, column=4, pady=10, sticky="nsew", columnspan=3, padx=10)
@@ -411,7 +461,7 @@ def open_github(event):
     webbrowser.open("https://github.com/SebasGalindo/lab_adaline")    
 
 def open_documentation(event):
-    webbrowser.open("https://mailunicundiedu-my.sharepoint.com/:b:/g/personal/mamorenobeltran_ucundinamarca_edu_co/EcoU5O6ciXpCkyvETVU4KBIBW-DL6eyV6lSngf7YiwOE8Q?e=0l881Y")
+    webbrowser.open("https://mailunicundiedu-my.sharepoint.com/my?id=/personal/mamorenobeltran_ucundinamarca_edu_co/Documents/UDEC/IA/PrimerCorte/IEEE_SegundoLab_Adaline_JohnGalindo_MiguelMoreno.pdf&parent=/personal/mamorenobeltran_ucundinamarca_edu_co/Documents/UDEC/IA/PrimerCorte&ga=1")
 
 def change_state_btn():
     global last_train_check, load_test_btn, load_weights_btn, status_test_data2_lbl, status_weights2_lbl, inputs_json, weights_json
@@ -502,9 +552,14 @@ def download_weitghs():
             json.dump(weights_json, file, indent=4)  # Guardar el diccionario en formato JSON
         print(f"Diccionario guardado en: {file_path}")
  
-def start_training():   
-    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, alpha, precision, weights_json, last_training2_lbl, graph_data, inputs_json, status2_lbl
+def start_training(console_widget):     
+    global precision_input, theta_input, alpha_input, download_weights_btn, data_json, theta, alpha, precision
+    global weights_json, last_training2_lbl, graph_data, inputs_json, status2_lbl
 
+    # Redirigir stdout a la consola
+    redirect_text = RedirectText(console_widget)
+    sys.stdout = redirect_text
+    
     if status2_lbl.cget("text") == "No Cargados":
         train_status2_lbl.configure(text="Datos no cargados", text_color="#d62c2c")
         return
@@ -544,6 +599,12 @@ def start_training():
             return
 
         train_status2_lbl.configure(text="Entrenamiento Empezado ", text_color="#45b51f")
+
+        # Imprime un mensaje inicial en la consola
+        print("Iniciando entrenamiento con los siguientes parámetros:")
+        print(f"Alpha: {alpha}, Theta: {theta}, Precisión: {precision}")
+        print("Datos cargados correctamente.")
+
         weights, graph_data, theta = train_adaline(data_json, alpha, theta, precision)
 
         weights_json = {
@@ -553,16 +614,25 @@ def start_training():
 
         train_status2_lbl.configure(text="Entrenamiento Finalizado ", text_color="#45b51f")
         download_weights_btn.configure(state="normal")
+
         # get the actual date in format dd/mm/yyyy hh:mm:ss
         date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         last_training2_lbl.configure(text = date, text_color="#fff")
         inputs_json = data_json
+
         store_data(weights_json, data_json, graph_data, date)
         show_train_info()
 
+        # Mensaje final en la consola
+        print("Entrenamiento finalizado correctamente.")
+        print(f"Fecha del último entrenamiento: {date}")
     except Exception as e:
-        print("error", e)
+        print("Error durante el entrenamiento:", e)
+        train_status2_lbl.configure(text="Error en el entrenamiento", text_color="#d62c2c")
         return
+    finally:
+        # Restaurar el stdout original después de completar el entrenamiento
+        sys.stdout = sys.__stdout__
 
 def start_test():
     global weights_json, inputs_json, test_status2_lbl, test_results, results_lbl, status_test_data2_lbl, status_weights2_lbl, last_train_check
